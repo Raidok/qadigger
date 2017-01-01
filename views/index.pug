@@ -5,17 +5,74 @@ html
       h4 {
         margin: 40px 0 10px;
       }
+      textarea {
+        width: 100%;
+        height: 50px;
+      }
       .true:hover {
         color: green;
       }
       .false:hover {
         color: red;
       }
+      .explanation {
+        color: #999;
+      }
+    script.
+      function postExplanation(id, explanation) {
+        if (!id) {
+          console.log('no id!');
+          return;
+        }
+        var xhr = new XMLHttpRequest();
+
+        xhr.open('POST', 'http://localhost:3000/explanation/' + id);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function() {
+            if (xhr.status === 200 || xhr.status === 204) {
+                console.log('Success! Response:' + xhr.responseText);
+            } else {
+                console.log('Request failed. Responded ' + xhr.status + ' with content:' + xhr.responseText);
+            }
+        };
+
+        xhr.send(JSON.stringify({explanation: explanation}));
+      }
+      function edit(editLink) {
+        var saveLink = editLink.nextSibling
+          , textArea = editLink.previousSibling
+          , div = textArea.previousSibling
+          , text = div.innerText;
+        console.log('copying', text);
+        textArea.value = text;
+
+        editLink.setAttribute('style', 'display:none');
+        saveLink.removeAttribute('style');
+        textArea.removeAttribute('style');
+      }
+      function save(saveLink) {
+        var id = saveLink.parentNode.getAttribute('data-qid')
+          , editLink = saveLink.previousSibling
+          , textArea = editLink.previousSibling
+          , div = textArea.previousSibling
+          , text = textArea.value;
+        console.log('posting', id, text);
+        div.innerText = text;
+
+        editLink.removeAttribute('style');
+        saveLink.setAttribute('style', 'display:none');
+        textArea.setAttribute('style', 'display:none');
+        postExplanation(id, text);
+      }
   body
     ul(style='list-style-type:none')
       each q in questions
-        li
+        li(data-qid=q.id)
           h4= q.question
+          p.explanation !{ q.explanation ? q.explanation.replace(/\n/g, "<br>") : "" }
+          textarea(style='display:none')
+          a(href='javascript:void(0)',onclick='edit(this)') edit
+          a(href='javascript:void(0)',onclick='save(this)',style='display:none') save
           p
             img(src=q.image)
           ul(style='list-style-type:decimal')

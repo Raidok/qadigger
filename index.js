@@ -1,6 +1,7 @@
 var express = require('express');
 var app = express();
 var cors = require('cors');
+var escape = require('escape-html')
 var bodyParser = require('body-parser');
 var sqlite3 = require('sqlite3').verbose();
 var db = new sqlite3.Database('db.sqlite', sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, function (err) {
@@ -8,7 +9,8 @@ var db = new sqlite3.Database('db.sqlite', sqlite3.OPEN_READWRITE | sqlite3.OPEN
     console.log('error opening db:', err);
   } else {
     db.run("CREATE TABLE IF NOT EXISTS images (id INTEGER PRIMARY KEY, src TEXT, dataUri TEXT)");
-    db.run("CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY, updated DATETIME DEFAULT CURRENT_TIMESTAMP, text TEXT)");
+    db.run("CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY, updated DATETIME DEFAULT CURRENT_TIMESTAMP, text TEXT, explanation TEXT)");
+    db.run("ALTER TABLE questions ADD COLUMN explanation TEXT", function (err) {});
     db.run("CREATE TABLE IF NOT EXISTS answers (id INTEGER PRIMARY KEY, aid INTEGER, qid INTEGER, text TEXT, correct INTEGER, checked INTEGER)");
     db.run("CREATE TABLE IF NOT EXISTS answering (id INTEGER PRIMARY KEY, created DATETIME DEFAULT CURRENT_TIMESTAMP, version TEXT, href TEXT)");
   }
@@ -28,18 +30,21 @@ var corsOptions = {
 };
 
 app.get('/', function (req, res) {
-    db.all("SELECT q.id AS qid, q.text AS question, i.dataUri AS image, T2.id AS aid, T2.text AS answer, T2.correct FROM questions q " +
+    db.all("SELECT q.id AS qid, q.text AS question, q.explanation AS explanation, i.dataUri AS image, T2.id AS aid, T2.text AS answer, T2.correct FROM questions q " +
            "LEFT JOIN (SELECT qid, MAX(aid) AS maxid FROM answers GROUP BY qid) AS T1 ON q.id = T1.qid " +
            "LEFT JOIN answers AS T2 ON T2.aid = T1.maxid AND T2.qid = q.id " +
            "LEFT JOIN images AS i ON i.id = q.id " +
            "ORDER BY T2.id DESC",
            function (err, rows) {
-      console.log('selected rows:', rows.length);
+      if (err) {
+        console.log('error:', err);
+        res.sendStatus(500);
+      }
       var prevQid, index = -1;
       var questions = rows.reduce(function(questions, row) {
         var a = { answer: row.answer, correct: row.correct };
         if (prevQid != row.qid) {
-          questions[++index] = { question: row.question, image: row.image, answers: [a] };
+          questions[++index] = { id: row.qid, question: row.question, explanation: row.explanation, image: row.image, answers: [a] };
         } else {
           questions[index].answers.push(a);
         }
@@ -49,6 +54,28 @@ app.get('/', function (req, res) {
       console.log('total questions:', questions.length);
       res.render('index', { questions: questions });
     });
+});
+
+app.post('/explanation/:id', function (req, res) {
+  var id = req.params.id;
+  var data = req.body;
+  if (id && data.explanation) {
+    console.log('updating', id, 'with', data);
+    db.run('UPDATE questions SET explanation = $explanation WHERE id = $id', {
+      $id: id,
+      $explanation: escape(data.explanation)
+    }, function (err) {
+      if (err) {
+        console.log('error updating explanation for', id, ':', err);
+        res.sendStatus(500);
+      } else {
+        res.sendStatus(200);
+      }
+    });
+  } else {
+    console.log('invalid explanation for', id, ':', data);
+    res.sendStatus(400);
+  }
 });
 
 app.post('/qa', cors(corsOptions), function (req, res) {
