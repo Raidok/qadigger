@@ -1,0 +1,23 @@
+html
+  head
+    title QA
+    style(media='screen', type='text/css').
+      h4 {
+        margin: 40px 0 10px;
+      }
+      .true:hover {
+        color: green;
+      }
+      .false:hover {
+        color: red;
+      }
+  body
+    ul(style='list-style-type:none')
+      each q in questions
+        li
+          h4= q.question
+          p
+            img(src=q.image)
+          ul(style='list-style-type:decimal')
+            each a in q.answers
+              li(class=a.correct?'true':'false')= a.answer
