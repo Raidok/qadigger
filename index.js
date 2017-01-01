@@ -35,24 +35,25 @@ app.get('/', function (req, res) {
            "ORDER BY T2.id DESC",
            function (err, rows) {
       console.log('selected rows:', rows.length);
+      var prevQid, index = -1;
       var questions = rows.reduce(function(questions, row) {
-        var o = questions[row.qid];
         var a = { answer: row.answer, correct: row.correct };
-        if (!o) {
-          o = { question: row.question, image: row.image, answers: [a] };
+        if (prevQid != row.qid) {
+          questions[++index] = { question: row.question, image: row.image, answers: [a] };
         } else {
-          o.answers.push(a);
+          questions[index].answers.push(a);
         }
-        questions[row.qid] = o;
+        prevQid = row.qid;
         return questions;
-      }, {});
+      }, []);
+      console.log('total questions:', questions.length);
       res.render('index', { questions: questions });
     });
-})
+});
 
 app.post('/qa', cors(corsOptions), function (req, res) {
   var data = req.body;
-  console.log(JSON.stringify(data));
+  console.log('NEW QA DATA:', JSON.stringify(data));
   if (!data.version || !data.data || data.data.length < 15) {
     console.log('invalid qa data', !data.version, !data.data, data.data.length < 15);
     return res.sendStatus(400);
@@ -90,7 +91,7 @@ app.post('/qa', cors(corsOptions), function (req, res) {
       }
     });
   });
-})
+});
 
 app.post('/img', cors(corsOptions), function (req, res) {
   var data = req.body;
@@ -99,7 +100,7 @@ app.post('/img', cors(corsOptions), function (req, res) {
     return res.sendStatus(400);
   }
   var img = data.data;
-  console.log(JSON.stringify(data).substring(0,200));
+  console.log('NEW IMG DATA:', JSON.stringify(data).substring(0,200));
 
   var istmt = db.run("REPLACE INTO images (id, src, dataUri) VALUES (?,?,?)", img.id, img.src, img.dataUri, function (err) {
     if (err) {
@@ -114,4 +115,4 @@ app.post('/img', cors(corsOptions), function (req, res) {
 
 app.listen(3000, function () {
   console.log('Example app listening on port 3000!')
-})
+});
