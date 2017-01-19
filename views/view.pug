@@ -1,0 +1,100 @@
+html
+  head
+    title QA
+    style(media='screen', type='text/css').
+      * {
+        text-align: center;
+      }
+      h4 {
+        margin: 40px 0 10px;
+      }
+      textarea {
+        width: 100%;
+        height: 50px;
+      }
+      .true {
+        color: green;
+      }
+      .false {
+        color: red;
+      }
+      .explanation {
+        color: #999;
+      }
+      input[type="checkbox"] {
+        width: 25px;
+        height: 25px;
+      }
+      button {
+        width: 20%;
+        height: 100px;
+        background-color: #4CAF50;
+      }
+      label {
+        font-size: 2em;
+      }
+      li {
+        list-style-type: none;
+        padding: 1em;
+      }
+    script.
+      function check(element) {
+        var checked = element.checked;
+        var li = element.parentNode.parentNode;
+        var correct = li.getAttribute('data-correct');
+        if (checked && correct === 'true' || !checked && correct === 'false') {
+          li.setAttribute('class', 'true');
+        } else {
+          li.setAttribute('class', 'false');
+        }
+        console.log('checked', element.checked);
+        console.log('correct', li.getAttribute('data-correct'));
+      }
+
+      function click(e) {
+
+        console.log('e', e);
+        var element = e.target;
+        check(element);
+
+      }
+
+      function checkAll() {
+        getAllCheckboxes().forEach(function (cb) {
+            check(cb);
+        });
+      }
+
+      function getAllCheckboxes() {
+        return [].slice.call(document.querySelectorAll('input[type="checkbox"]'));
+      }
+
+      function refresh() {
+        location.reload();
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        getAllCheckboxes().forEach(function (cb) {
+            cb.addEventListener('change', click);
+        });
+      });
+  body
+    ul(style='list-style-type:none')
+      each q in questions
+        li(data-qid=q.id)
+          h2= q.question
+          p.explanation !{ q.explanation ? q.explanation.replace(/\n/g, "<br>") : "" }
+          p
+            img(src=q.image)
+          ul(style='list-style-type:decimal')
+            each a in q.answers
+              li(data-correct=a.correct?'true':'false')
+                label
+                  input(type='checkbox')
+                  | 
+                  span= a.answer
+    br
+    br
+    br
+    button(onclick='checkAll()',style='float:left') Kontrolli
+    button(onclick='refresh()',style='float:right') Uus
